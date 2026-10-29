@@ -42,6 +42,7 @@ public class AudioConverter {
         }
 
         Path operationDirectory = null;
+        long deadline = System.nanoTime() + properties.timeout().toNanos();
         try {
             operationDirectory = Files.createTempDirectory(properties.tempDirectory(), "conversion-");
             Path processLog = operationDirectory.resolve("process.log");
@@ -55,12 +56,12 @@ public class AudioConverter {
                     "--audio-quality", "0",
                     "--output", outputTemplate.toString()));
             Path ffmpeg = Path.of(properties.ffmpegExecutable());
-            if (ffmpeg.isAbsolute()) {
+            if (ffmpeg.isAbsolute() || properties.ffmpegExecutable().contains("/")) {
                 command.add("--ffmpeg-location");
-                command.add(ffmpeg.getParent().toString());
+                command.add(ffmpeg.toAbsolutePath().getParent().toString());
             }
             command.add(url);
-            execute(command, processLog, properties.timeout());
+            execute(command, processLog, remaining(deadline), "yt-dlp");
 
             if (!Files.isRegularFile(audioFile) || Files.size(audioFile) == 0) {
                 throw new ConversionFailedException();
@@ -75,7 +76,7 @@ public class AudioConverter {
                     "-v", "error",
                     "-show_entries", "format=format_name",
                     "-of", "default=noprint_wrappers=1:nokey=1",
-                    audioFile.toString()), probeOutput, Duration.ofSeconds(15));
+                    audioFile.toString()), probeOutput, remaining(deadline), "ffprobe");
             String format = Files.readString(probeOutput, StandardCharsets.UTF_8).trim();
             if (!List.of(format.split(",")).contains("mp3")) {
                 throw new ConversionFailedException();
@@ -94,7 +95,16 @@ public class AudioConverter {
         }
     }
 
-    private void execute(List<String> command, Path output, Duration timeout) throws IOException, InterruptedException {
+    private Duration remaining(long deadline) {
+        long nanos = deadline - System.nanoTime();
+        if (nanos <= 0) {
+            throw new ConversionTimeoutException();
+        }
+        return Duration.ofNanos(nanos);
+    }
+
+    private void execute(List<String> command, Path output, Duration timeout, String toolName)
+            throws IOException, InterruptedException {
         Process process;
         try {
             process = new ProcessBuilder(command)
@@ -102,18 +112,31 @@ public class AudioConverter {
                     .redirectOutput(output.toFile())
                     .start();
         } catch (IOException exception) {
+            logger.warn("Could not start audio tool {}", toolName);
             throw new ConversionFailedException();
         }
 
-        if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
-            process.toHandle().descendants().forEach(ProcessHandle::destroyForcibly);
-            process.destroyForcibly();
-            process.waitFor(2, TimeUnit.SECONDS);
+        boolean finished;
+        try {
+            finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException exception) {
+            terminate(process);
+            throw exception;
+        }
+        if (!finished) {
+            terminate(process);
             throw new ConversionTimeoutException();
         }
         if (process.exitValue() != 0) {
+            logger.warn("Audio tool {} exited with code {}", toolName, process.exitValue());
             throw new ConversionFailedException();
         }
+    }
+
+    private void terminate(Process process) throws InterruptedException {
+        process.toHandle().descendants().forEach(ProcessHandle::destroyForcibly);
+        process.destroyForcibly();
+        process.waitFor(2, TimeUnit.SECONDS);
     }
 
     private void deleteTemporaryDirectory(Path directory) {
@@ -122,7 +145,7 @@ public class AudioConverter {
                 Files.deleteIfExists(path);
             }
         } catch (IOException exception) {
-            logger.error("Failed to remove conversion temporary files.");
+            logger.error("Failed to remove conversion temporary files: {}", exception.getClass().getSimpleName());
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.jfelipesouza.conversor.controller;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import org.springframework.http.ContentDisposition;
@@ -58,7 +57,8 @@ public class ConversorController {
     @GetMapping("/downloads/{token}")
     @Operation(
             summary = "Download a converted MP3",
-            description = "Streams the private stored MP3 as an attachment. Unknown or expired links return 404.")
+            description = "Streams the private stored MP3 as an attachment and deletes the Blob after a successful "
+                    + "download. The link can be used once. Unknown or expired links return 404.")
     @ApiResponse(responseCode = "200", description = "MP3 download",
             content = @Content(mediaType = "audio/mpeg"))
     @ApiResponse(responseCode = "404", description = "Token not found or expired")
@@ -66,10 +66,18 @@ public class ConversorController {
     public ResponseEntity<StreamingResponseBody> download(@PathVariable String token) {
         ControllerService.DownloadPayload download = controllerService.openDownload(token);
         StreamingResponseBody body = outputStream -> {
-            try (var inputStream = download.inputStream()) {
-                inputStream.transferTo(outputStream);
-            } catch (IOException exception) {
-                throw new IllegalStateException("Audio download stream failed.");
+            boolean transferred = false;
+            try {
+                try (var inputStream = download.inputStream()) {
+                    inputStream.transferTo(outputStream);
+                    transferred = true;
+                }
+            } finally {
+                if (transferred) {
+                    controllerService.completeDownload(download);
+                } else {
+                    controllerService.releaseDownload(download.token());
+                }
             }
         };
         return ResponseEntity.ok()

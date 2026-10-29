@@ -27,9 +27,12 @@ public record AppProperties(
             @NotBlank String ytDlpExecutable,
             @NotBlank String ffmpegExecutable,
             @NotBlank String ffprobeExecutable) {
-        @AssertTrue(message = "app.converter.timeout must be greater than zero")
-        public boolean isTimeoutPositive() {
-            return timeout != null && !timeout.isZero() && !timeout.isNegative();
+        @AssertTrue(message = "app.converter.timeout must be positive and no longer than 24 hours")
+        public boolean isTimeoutValid() {
+            return timeout != null
+                    && !timeout.isZero()
+                    && !timeout.isNegative()
+                    && timeout.compareTo(Duration.ofHours(24)) <= 0;
         }
     }
 
@@ -42,9 +45,12 @@ public record AppProperties(
             @NotBlank String baseUrl,
             @NotNull Duration validity,
             @Positive int maxLinks) {
-        @AssertTrue(message = "app.download.validity must be greater than zero")
+        @AssertTrue(message = "app.download.validity must be positive and no longer than 365 days")
         public boolean isValidityPositive() {
-            return validity != null && !validity.isZero() && !validity.isNegative();
+            return validity != null
+                    && !validity.isZero()
+                    && !validity.isNegative()
+                    && validity.compareTo(Duration.ofDays(365)) <= 0;
         }
 
         @AssertTrue(message = "app.download.base-url must be an absolute HTTP or HTTPS URL without credentials")

@@ -6,17 +6,26 @@ COPY .mvn .mvn
 COPY src src
 RUN chmod +x mvnw && ./mvnw -B clean package -DskipTests
 
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:21-jre-noble
 
 ARG YT_DLP_VERSION=2026.10.26
+ARG YT_DLP_SHA256=e51e69e89489f199530f13d32a4342da3ddb2cf34842f364603a066db05afbf3
+ARG FFMPEG_PACKAGE_VERSION=7:6.1.1-3ubuntu5
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       ffmpeg \
+       "ffmpeg=${FFMPEG_PACKAGE_VERSION}" \
        python3 \
-       python3-pip \
+       curl \
        ca-certificates \
-    && python3 -m pip install --break-system-packages --no-cache-dir "yt-dlp==${YT_DLP_VERSION}" \
+    && curl -fsSL --retry 3 \
+       "https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_VERSION}/yt-dlp" \
+       -o /usr/local/bin/yt-dlp \
+    && echo "${YT_DLP_SHA256}  /usr/local/bin/yt-dlp" | sha256sum --check - \
+    && chmod 0755 /usr/local/bin/yt-dlp \
+    && ffmpeg -version >/dev/null \
+    && ffprobe -version >/dev/null \
+    && /usr/local/bin/yt-dlp --version >/dev/null \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid 10001 app \

@@ -4,6 +4,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,7 @@ import com.jfelipesouza.conversor.converter.ConversionCapacityException;
 public class DownloadTokenRegistry {
     private static final String TOKEN_PATTERN = "[A-Za-z0-9_-]{43}";
     private final ConcurrentHashMap<String, DownloadLink> links = new ConcurrentHashMap<>();
+    private final Set<String> activeDownloads = ConcurrentHashMap.newKeySet();
     private final SecureRandom secureRandom = new SecureRandom();
     private final AppProperties.Download properties;
 
@@ -39,6 +41,27 @@ public class DownloadTokenRegistry {
     }
 
     public DownloadLink resolve(String token) {
+        return find(token);
+    }
+
+    public synchronized DownloadLink claim(String token) {
+        DownloadLink link = find(token);
+        if (!activeDownloads.add(token)) {
+            throw new DownloadNotFoundException();
+        }
+        return link;
+    }
+
+    public synchronized void complete(String token) {
+        activeDownloads.remove(token);
+        links.remove(token);
+    }
+
+    public synchronized void release(String token) {
+        activeDownloads.remove(token);
+    }
+
+    private DownloadLink find(String token) {
         if (token == null || !token.matches(TOKEN_PATTERN)) {
             throw new DownloadNotFoundException();
         }

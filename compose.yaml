@@ -6,11 +6,11 @@ services:
     command: >
       azurite-blob
       --blobHost 0.0.0.0
-      --blobPort 10000
+      --blobPort 11000
       --location /data
       --skipApiVersionCheck
     ports:
-      - "10000:10000"
+      - "11000:11000"
     volumes:
       - azurite_data:/data
     restart: unless-stopped
@@ -19,7 +19,7 @@ services:
         - CMD
         - node
         - -e
-        - "require('http').get('http://127.0.0.1:10000/devstoreaccount1?comp=list', r => process.exit(r.statusCode ? 0 : 1)).on('error', () => process.exit(1))"
+        - "require('http').get('http://127.0.0.1:11000/devstoreaccount1?comp=list', r => process.exit(r.statusCode ? 0 : 1)).on('error', () => process.exit(1))"
       interval: 10s
       timeout: 3s
       retries: 5
@@ -33,18 +33,20 @@ services:
         condition: service_healthy
     environment:
       SERVER_PORT: 8080
-      AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFeqCnf2Q==;BlobEndpoint=http://azurite:10000/devstoreaccount1;}
+      AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:11000/devstoreaccount1;}
       AZURE_STORAGE_CONTAINER: ${AZURE_STORAGE_CONTAINER:-audios}
       DOWNLOAD_BASE_URL: ${DOWNLOAD_BASE_URL:-http://localhost:8080}
       DOWNLOAD_LINK_VALIDITY: ${DOWNLOAD_LINK_VALIDITY:-24h}
       CONVERTER_TIMEOUT: ${CONVERTER_TIMEOUT:-10m}
-      CONVERTER_MAX_FILE_SIZE: ${CONVERTER_MAX_FILE_SIZE:-100MB}
+      CONVERTER_MAX_FILE_SIZE: ${CONVERTER_MAX_FILE_SIZE:-104857600}
       CONVERTER_MAX_CONCURRENT: ${CONVERTER_MAX_CONCURRENT:-2}
+      JAVA_TOOL_OPTIONS: -Dio.netty.native.workdir=/run/netty
     ports:
       - "${SERVER_PORT:-8080}:8080"
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=2g,mode=1777
+      - /run/netty:rw,exec,nosuid,size=32m,mode=1777
     mem_limit: 2g
     cpus: 2
     pids_limit: 128

@@ -63,7 +63,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> unexpected(Exception exception, WebRequest request) {
-        logger.error("Unexpected API failure ({})", exception.getClass().getSimpleName());
+        logger.error("Unexpected API failure: {}", exception.getClass().getSimpleName());
         return response(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.", request);
     }
 

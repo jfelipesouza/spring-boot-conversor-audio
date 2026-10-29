@@ -3,6 +3,8 @@ package com.jfelipesouza.conversor.service;
 import java.io.InputStream;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.jfelipesouza.conversor.config.AppProperties;
@@ -16,6 +18,7 @@ import com.jfelipesouza.conversor.storage.AudioStorage;
 
 @Service
 public class ControllerService {
+    private static final Logger logger = LoggerFactory.getLogger(ControllerService.class);
     private final AudioConverter converter;
     private final AudioStorage storage;
     private final DownloadTokenRegistry tokenRegistry;
@@ -57,11 +60,31 @@ public class ControllerService {
     }
 
     public DownloadPayload openDownload(String token) {
-        DownloadLink link = tokenRegistry.resolve(token);
-        InputStream inputStream = storage.open(link.objectKey());
-        return new DownloadPayload(link.fileName(), inputStream);
+        DownloadLink link = tokenRegistry.claim(token);
+        try {
+            InputStream inputStream = storage.open(link.objectKey());
+            return new DownloadPayload(token, link.objectKey(), link.fileName(), inputStream);
+        } catch (RuntimeException exception) {
+            tokenRegistry.release(token);
+            throw exception;
+        }
     }
 
-    public record DownloadPayload(String fileName, InputStream inputStream) {
+    public void completeDownload(DownloadPayload download) {
+        try {
+            storage.delete(download.objectKey());
+            tokenRegistry.complete(download.token());
+        } catch (RuntimeException exception) {
+            tokenRegistry.release(download.token());
+            logger.error("Could not delete audio after download: {}", exception.getClass().getSimpleName());
+            throw exception;
+        }
+    }
+
+    public void releaseDownload(String token) {
+        tokenRegistry.release(token);
+    }
+
+    public record DownloadPayload(String token, String objectKey, String fileName, InputStream inputStream) {
     }
 }
