@@ -36,33 +36,36 @@ public class ConversorController {
 
     @PostMapping("/conversor")
     @Operation(
-            summary = "Convert YouTube audio to MP3",
-            description = "Synchronously extracts authorized YouTube audio, stores the MP3 in private Blob Storage, "
-                    + "and returns an application download link. Links expire according to DOWNLOAD_LINK_VALIDITY "
-                    + "and are valid only on the API instance that created them.")
-    @ApiResponse(responseCode = "200", description = "Conversion and upload completed",
+            summary = "Converter áudio do YouTube para MP3",
+            description = "Extrai de forma síncrona o áudio autorizado do YouTube, armazena o MP3 em um container "
+                    + "privado do Blob Storage e retorna um link de download. O link expira conforme "
+                    + "DOWNLOAD_LINK_VALIDITY e só funciona na instância da API que o criou.")
+    @ApiResponse(responseCode = "200", description = "Conversão e upload concluídos",
             content = @Content(schema = @Schema(implementation = ConversorResponse.class),
                     examples = @ExampleObject(value = """
-                            {"status":"COMPLETED","fileName":"audio-57dcd523-bcea-4781-92d4-0b3e493eea85.mp3","downloadUrl":"http://localhost:8080/downloads/2JxdgKH5vNAhs5h8YJ8D3CRVM5He1Ds9uE7YVhSxjDc"}
+                            {"status":"CONCLUÍDO","fileName":"mangue-seco.mp3","downloadUrl":"http://localhost:8080/downloads/2JxdgKH5vNAhs5h8YJ8D3CRVM5He1Ds9uE7YVhSxjDc"}
                             """)))
-    @ApiResponse(responseCode = "400", description = "Invalid JSON, URL, or format")
-    @ApiResponse(responseCode = "413", description = "Converted file exceeds the configured limit")
-    @ApiResponse(responseCode = "502", description = "Video source or conversion failed")
-    @ApiResponse(responseCode = "503", description = "Conversion or storage service is unavailable")
-    @ApiResponse(responseCode = "504", description = "Conversion timed out")
+    @ApiResponse(responseCode = "400", description = "JSON, URL, formato ou nome de arquivo inválido")
+    @ApiResponse(responseCode = "413", description = "O arquivo convertido excede o limite configurado")
+    @ApiResponse(responseCode = "502", description = "Não foi possível converter o vídeo de origem")
+    @ApiResponse(responseCode = "503", description = "Serviço de conversão ou armazenamento indisponível")
+    @ApiResponse(responseCode = "504", description = "O tempo limite da conversão foi excedido")
     public ResponseEntity<ConversorResponse> convert(@Valid @RequestBody ConversorRequestBody request) {
-        return ResponseEntity.ok(controllerService.generateDownloadUrl(request.url(), request.type()));
+        return ResponseEntity.ok(controllerService.generateDownloadUrl(
+                request.url(),
+                request.type(),
+                request.filename()));
     }
 
     @GetMapping("/downloads/{token}")
     @Operation(
-            summary = "Download a converted MP3",
-            description = "Streams the private stored MP3 as an attachment and deletes the Blob after a successful "
-                    + "download. The link can be used once. Unknown or expired links return 404.")
-    @ApiResponse(responseCode = "200", description = "MP3 download",
+            summary = "Baixar um MP3 convertido",
+            description = "Transmite o MP3 armazenado como anexo e exclui o Blob após o download ser concluído. "
+                    + "O link pode ser usado uma única vez. Links inexistentes ou expirados retornam 404.")
+    @ApiResponse(responseCode = "200", description = "Download do MP3",
             content = @Content(mediaType = "audio/mpeg"))
-    @ApiResponse(responseCode = "404", description = "Token not found or expired")
-    @ApiResponse(responseCode = "503", description = "Storage is unavailable")
+    @ApiResponse(responseCode = "404", description = "Token inexistente ou expirado")
+    @ApiResponse(responseCode = "503", description = "Armazenamento indisponível")
     public ResponseEntity<StreamingResponseBody> download(@PathVariable String token) {
         ControllerService.DownloadPayload download = controllerService.openDownload(token);
         StreamingResponseBody body = outputStream -> {

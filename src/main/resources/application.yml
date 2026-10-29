@@ -12,7 +12,7 @@ app:
   converter:
     temp-directory: ${CONVERTER_TEMP_DIRECTORY:${java.io.tmpdir}/media-converter}
     timeout: ${CONVERTER_TIMEOUT:10m}
-    max-file-size: ${CONVERTER_MAX_FILE_SIZE:104857600}
+    max-file-size: ${CONVERTER_MAX_FILE_SIZE:314572800}
     max-concurrent: ${CONVERTER_MAX_CONCURRENT:2}
     yt-dlp-executable: ${YT_DLP_EXECUTABLE:yt-dlp}
     ffmpeg-executable: ${FFMPEG_EXECUTABLE:ffmpeg}

@@ -27,7 +27,7 @@ public class AzureBlobAudioStorage implements AudioStorage {
             blob.setHttpHeaders(new BlobHttpHeaders().setContentType("audio/mpeg"));
             return objectKey;
         } catch (RuntimeException exception) {
-            throw new StorageUnavailableException("Audio could not be uploaded to storage.", exception);
+            throw new StorageUnavailableException("Não foi possível enviar o áudio para o armazenamento.", exception);
         }
     }
 
@@ -37,7 +37,7 @@ public class AzureBlobAudioStorage implements AudioStorage {
         try {
             return container.getBlobClient(objectKey).openInputStream();
         } catch (RuntimeException exception) {
-            throw new StorageUnavailableException("Audio could not be read from storage.", exception);
+            throw new StorageUnavailableException("Não foi possível ler o áudio do armazenamento.", exception);
         }
     }
 
@@ -47,13 +47,13 @@ public class AzureBlobAudioStorage implements AudioStorage {
         try {
             container.getBlobClient(objectKey).deleteIfExists();
         } catch (RuntimeException exception) {
-            throw new StorageUnavailableException("Stored audio could not be removed.", exception);
+            throw new StorageUnavailableException("Não foi possível excluir o áudio do armazenamento.", exception);
         }
     }
 
     private void validateObjectKey(String objectKey) {
         if (objectKey == null || !objectKey.matches("[0-9a-fA-F-]{36}\\.mp3")) {
-            throw new IllegalArgumentException("Invalid audio object key.");
+            throw new IllegalArgumentException("A chave do arquivo de áudio é inválida.");
         }
     }
 }
