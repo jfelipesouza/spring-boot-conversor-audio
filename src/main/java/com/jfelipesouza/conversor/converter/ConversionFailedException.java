@@ -2,6 +2,6 @@ package com.jfelipesouza.conversor.converter;
 
 public class ConversionFailedException extends RuntimeException {
     public ConversionFailedException() {
-        super("Audio conversion could not be completed.");
+        super("Não foi possível concluir a conversão do áudio.");
     }
 }

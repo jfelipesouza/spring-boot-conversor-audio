@@ -29,10 +29,10 @@ public class AudioConverter {
         try {
             Files.createDirectories(properties.tempDirectory());
             if (!Files.isWritable(properties.tempDirectory())) {
-                throw new IllegalStateException("Conversion temporary directory is not writable.");
+                throw new IllegalStateException("O diretório temporário de conversão não permite gravação.");
             }
         } catch (IOException exception) {
-            throw new IllegalStateException("Conversion temporary directory could not be initialized.");
+            throw new IllegalStateException("Não foi possível inicializar o diretório temporário de conversão.");
         }
     }
 

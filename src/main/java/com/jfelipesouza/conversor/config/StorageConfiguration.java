@@ -19,7 +19,7 @@ public class StorageConfiguration {
             return client;
         } catch (RuntimeException exception) {
             throw new IllegalStateException(
-                    "Azure Blob Storage initialization failed. Verify the storage connection and container settings.");
+                    "Falha ao inicializar o armazenamento Azure Blob. Verifique a conexão e o container configurados.");
         }
     }
 }

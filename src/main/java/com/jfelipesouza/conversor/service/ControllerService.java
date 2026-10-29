@@ -1,6 +1,8 @@
 package com.jfelipesouza.conversor.service;
 
 import java.io.InputStream;
+import java.text.Normalizer;
+import java.util.Locale;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -38,18 +40,18 @@ public class ControllerService {
         this.downloadBaseUrl = properties.download().baseUrl().replaceAll("/+$", "");
     }
 
-    public ConversorResponse generateDownloadUrl(String url, AudioFormat format) {
+    public ConversorResponse generateDownloadUrl(String url, AudioFormat format, String audioName) {
         if (format != AudioFormat.MP3) {
-            throw new IllegalArgumentException("Only MP3 audio is supported.");
+            throw new IllegalArgumentException("Somente o formato MP3 é aceito.");
         }
         urlValidator.validate(url);
         return converter.convert(url, file -> {
-            String fileName = "audio-" + UUID.randomUUID() + ".mp3";
+            String fileName = sanitizeFileName(audioName);
             String objectKey = storage.store(file);
             try {
                 String token = tokenRegistry.register(objectKey, fileName);
                 return new ConversorResponse(
-                        "COMPLETED",
+                        "CONCLUÍDO",
                         fileName,
                         downloadBaseUrl + "/downloads/" + token);
             } catch (RuntimeException exception) {
@@ -57,6 +59,23 @@ public class ControllerService {
                 throw exception;
             }
         });
+    }
+
+    static String sanitizeFileName(String requestedName) {
+        String baseName = requestedName.replaceFirst("(?i)\\.mp3$", "");
+        String normalized = Normalizer.normalize(baseName, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "");
+        String safeName = normalized
+                .replaceAll("[^A-Za-z0-9_-]+", "-")
+                .replaceAll("-{2,}", "-")
+                .replaceAll("^[._-]+|[._-]+$", "");
+        if (safeName.isBlank()) {
+            safeName = "audio";
+        }
+        if (safeName.length() > 100) {
+            safeName = safeName.substring(0, 100).replaceAll("[._-]+$", "");
+        }
+        return safeName + ".mp3";
     }
 
     public DownloadPayload openDownload(String token) {
